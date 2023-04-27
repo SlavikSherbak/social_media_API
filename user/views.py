@@ -5,11 +5,11 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import generics, viewsets, status, mixins
 from rest_framework.decorators import action
+from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from user.models import Profile
 from user.serializers import (
@@ -17,7 +17,8 @@ from user.serializers import (
     ProfileSerializer,
     ProfileListSerializer,
     ProfileDetailSerializer,
-    ProfileImageSerializer
+    ProfileImageSerializer,
+    RefreshTokenSerializer
 )
 
 
@@ -106,16 +107,12 @@ class UserFollowersViewSet(
         return my_user.profile.followers.all()
 
 
-class LogoutView(APIView):
-    permission_classes = (IsAuthenticated,)
+class LogoutView(GenericAPIView):
+    serializer_class = RefreshTokenSerializer
+    permission_classes = (IsAuthenticated, )
 
-    @staticmethod
-    def post(request):
-        try:
-            refresh_token = request.data["refresh_token"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args):
+        sz = self.get_serializer(data=request.data)
+        sz.is_valid(raise_exception=True)
+        sz.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
